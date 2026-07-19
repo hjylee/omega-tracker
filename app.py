@@ -31,6 +31,13 @@ def init_db():
         UNIQUE (user_id, log_date)
     )
     ''')
+    # 🛠 [추가됨] 주간 기도제목 테이블
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS Weekly_Prayer (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL
+    )
+    ''')
     conn.commit()
     conn.close()
 
@@ -61,7 +68,6 @@ if not users_df.empty:
     selected_name = st.selectbox("이름을 선택하세요", options=list(user_dict.keys()))
     selected_user_id = user_dict[selected_name]
 
-    # 🛠 [수정됨] 한국 시간 기준 오늘 날짜 가져오기
     today_kst = datetime.datetime.now(KST).date()
     log_date = st.date_input("날짜", today_kst)
 
@@ -97,7 +103,6 @@ else:
 st.divider()
 st.header("📊 주간 통계 대시보드")
 
-# 🛠 [수정됨] 대시보드 날짜 계산도 한국 시간 기준으로 처리
 today = datetime.datetime.now(KST).date()
 start_of_week = today - datetime.timedelta(days=today.weekday())
 end_of_week = start_of_week + datetime.timedelta(days=6)
@@ -118,13 +123,37 @@ query = """
 """
 
 df_stats = pd.read_sql_query(query, conn, params=(start_of_week, end_of_week))
-conn.close()
 
 df_stats.index = df_stats.index + 1
 
 if df_stats.empty:
-    st.info("아직 등록된 모임원이 없습니다.")
+    st.info("아직 등록된 DNA원이 없습니다.")
 else:
     df_stats[['새벽기도 (회)', '일용할 양식 (회)', '오감 (회)']] = df_stats[['새벽기도 (회)', '일용할 양식 (회)', '오감 (회)']].astype(int)
     st.dataframe(df_stats, use_container_width=True)
     st.caption("💡 주일 모임에서 위 표를 띄워놓고 함께 한 주간의 은혜를 나눠보세요!")
+
+# --- 4. 주간 기도제목 공유 영역 (추가됨) ---
+st.divider()
+st.header("🙏 이번 주 기도제목")
+
+c = conn.cursor()
+c.execute("SELECT content FROM Weekly_Prayer ORDER BY id DESC LIMIT 1")
+latest_prayer = c.fetchone()
+
+# 가장 최근 등록된 기도제목 출력 (글머리 기호 등 마크다운 자동 지원)
+if latest_prayer and latest_prayer[0].strip():
+    st.info(latest_prayer[0])
+else:
+    st.write("아직 등록된 기도제목이 없습니다.")
+
+# 리더가 기도제목을 쉽게 바꿀 수 있는 입력 칸
+with st.expander("⚙️ 리더 전용: 이번 주 기도제목 업데이트"):
+    new_prayer = st.text_area("주일 소모임에서 나눈 기도제목을 입력하세요 (줄바꿈 가능)", height=150)
+    if st.button("기도제목 업데이트"):
+        if new_prayer:
+            c.execute("INSERT INTO Weekly_Prayer (content) VALUES (?)", (new_prayer,))
+            conn.commit()
+            st.success("기도제목이 업데이트되었습니다! 🔄 새로고침(Cmd+R) 해주세요.")
+
+conn.close()
