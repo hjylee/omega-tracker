@@ -41,7 +41,7 @@ st.title("🌱 본질 사수 트래커")
 st.write("매일 새벽기도, 일용할 양식, 오감을 체크해 보세요!")
 
 # 1. 소모임원 등록 영역
-with st.expander("👤 새로운 모임원 등록하기"):
+with st.expander("👤 새로운 DNA원 등록하기"):
     new_name = st.text_input("이름을 입력하세요")
     if st.button("등록"):
         if new_name:
@@ -91,7 +91,7 @@ if not users_df.empty:
         conn.commit()
         st.success("오늘의 기록이 성공적으로 저장되었습니다! 🎉")
 else:
-    st.info("등록된 모임원이 없습니다. 위 메뉴에서 이름을 먼저 등록해주세요.")
+    st.info("등록된 DNA원이 없습니다. 위 메뉴에서 이름을 먼저 등록해주세요.")
 
 # 3. 주간 통계 대시보드
 st.divider()
@@ -122,7 +122,7 @@ conn.close()
 df_stats.index = df_stats.index + 1
 
 if df_stats.empty:
-    st.info("아직 등록된 모임원이 없습니다.")
+    st.info("아직 등록된 DNA원이 없습니다.")
 else:
     df_stats[['새벽기도 (회)', '일용할 양식 (회)', '오감 (회)']] = df_stats[['새벽기도 (회)', '일용할 양식 (회)', '오감 (회)']].astype(int)
     st.dataframe(df_stats, use_container_width=True)
