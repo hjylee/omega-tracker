@@ -3,6 +3,9 @@ import sqlite3
 import datetime
 import pandas as pd
 
+# ⏰ 한국 시간대(KST) 설정 (UTC+9)
+KST = datetime.timezone(datetime.timedelta(hours=9))
+
 # --- DB 연결 및 자동 초기화 ---
 def get_connection():
     return sqlite3.connect('tracker.db')
@@ -10,14 +13,12 @@ def get_connection():
 def init_db():
     conn = get_connection()
     c = conn.cursor()
-    # Users 테이블 생성
     c.execute('''
     CREATE TABLE IF NOT EXISTS Users (
         user_id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL
     )
     ''')
-    # Daily_Logs 테이블 생성
     c.execute('''
     CREATE TABLE IF NOT EXISTS Daily_Logs (
         log_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,14 +34,12 @@ def init_db():
     conn.commit()
     conn.close()
 
-# 앱이 실행될 때마다 무조건 테이블 존재 여부를 체크하고 생성합니다.
 init_db()
 
 # --- 웹 화면 시작 ---
 st.title("🌱 본질 사수 트래커")
 st.write("매일 새벽기도, 일용할 양식, 오감을 체크해 보세요!")
 
-# 1. 소모임원 등록 영역
 with st.expander("👤 새로운 DNA원 등록하기"):
     new_name = st.text_input("이름을 입력하세요")
     if st.button("등록"):
@@ -50,9 +49,8 @@ with st.expander("👤 새로운 DNA원 등록하기"):
             c.execute("INSERT INTO Users (name) VALUES (?)", (new_name,))
             conn.commit()
             conn.close()
-            st.success(f"'{new_name}'님이 등록되었습니다! 적용을 위해 🔄 새로고침(Cmd+R) 해주세요.")
+            st.success(f"'{new_name}'님이 등록되었습니다! 적용을 위해 🔄 새로고침 해주세요.")
 
-# 2. 매일 체크인 화면
 conn = get_connection()
 users_df = pd.read_sql_query("SELECT user_id, name FROM Users", conn)
 
@@ -63,7 +61,9 @@ if not users_df.empty:
     selected_name = st.selectbox("이름을 선택하세요", options=list(user_dict.keys()))
     selected_user_id = user_dict[selected_name]
 
-    log_date = st.date_input("날짜", datetime.date.today())
+    # 🛠 [수정됨] 한국 시간 기준 오늘 날짜 가져오기
+    today_kst = datetime.datetime.now(KST).date()
+    log_date = st.date_input("날짜", today_kst)
 
     c = conn.cursor()
     c.execute("SELECT morning_prayer, daily_bread, five_senses FROM Daily_Logs WHERE user_id=? AND log_date=?", (selected_user_id, log_date))
@@ -93,11 +93,12 @@ if not users_df.empty:
 else:
     st.info("등록된 DNA원이 없습니다. 위 메뉴에서 이름을 먼저 등록해주세요.")
 
-# 3. 주간 통계 대시보드
+# --- 3. 주간 통계 대시보드 ---
 st.divider()
 st.header("📊 주간 통계 대시보드")
 
-today = datetime.date.today()
+# 🛠 [수정됨] 대시보드 날짜 계산도 한국 시간 기준으로 처리
+today = datetime.datetime.now(KST).date()
 start_of_week = today - datetime.timedelta(days=today.weekday())
 end_of_week = start_of_week + datetime.timedelta(days=6)
 
@@ -122,7 +123,7 @@ conn.close()
 df_stats.index = df_stats.index + 1
 
 if df_stats.empty:
-    st.info("아직 등록된 DNA원이 없습니다.")
+    st.info("아직 등록된 모임원이 없습니다.")
 else:
     df_stats[['새벽기도 (회)', '일용할 양식 (회)', '오감 (회)']] = df_stats[['새벽기도 (회)', '일용할 양식 (회)', '오감 (회)']].astype(int)
     st.dataframe(df_stats, use_container_width=True)
